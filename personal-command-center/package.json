@@ -1,0 +1,53 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "personal-command-center",
+  "title": "Personal Command Center",
+  "description": "Open local development projects and tools.",
+  "icon": "extension-icon.png",
+  "author": "iibrahim908",
+  "platforms": [
+    "macOS"
+  ],
+  "categories": [
+    "Developer Tools",
+    "Productivity"
+  ],
+  "license": "MIT",
+  "preferences": [
+    {
+      "name": "projectsRoot",
+      "title": "Projects Folder",
+      "description": "The folder whose immediate child folders are development projects.",
+      "type": "directory",
+      "required": true,
+      "default": "/Users/ibrahim/Desktop/Projects"
+    }
+  ],
+  "commands": [
+    {
+      "name": "developer-command-center",
+      "title": "Developer Command Center",
+      "description": "Search and open local development projects.",
+      "mode": "view"
+    }
+  ],
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@raycast/api": "1.104.23",
+    "@raycast/utils": "2.2.7"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "2.2.0",
+    "@types/node": "26.1.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

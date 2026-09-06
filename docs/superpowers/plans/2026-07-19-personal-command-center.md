@@ -1,0 +1,699 @@
+# Developer Command Center Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a Raycast command that discovers local development projects and quickly opens each project in VS Code, Terminal, Codex, Claude Code, GitHub, or its local web address.
+
+**Architecture:** Scan only the immediate child folders of one configured projects directory. Infer project capabilities from marker files, read Git information without changing repositories, and render everything with Raycast's native searchable list. AI tools open in a new Terminal tab at the project path; development and Docker commands are copied, never run automatically.
+
+**Tech Stack:** Raycast API, React, TypeScript, Node.js filesystem and child-process APIs, npm, Vitest
+
+## Global Constraints
+
+- Keep one Git repository at `/Users/ibrahim/Desktop/Projects/raycast-extensions`; never initialize Git inside an extension folder.
+- Build only `personal-command-center`; do not change `old-trash-cleaner`.
+- Support macOS only.
+- Use Node.js 22.14 or newer and npm 7 or newer. This Mac has Node.js 24.18.0 and npm 11.16.0.
+- Default the project root preference to `/Users/ibrahim/Desktop/Projects`.
+- Scan immediate child directories only. Do not recursively search the filesystem.
+- Recognize Next.js, Django, Python, and Docker Compose projects.
+- Never run development servers, migrations, tests, builds, or Docker commands automatically.
+- Launch Codex from `/Users/ibrahim/.local/bin/codex` and Claude Code from `/Users/ibrahim/.local/bin/claude`.
+- Pass paths as process arguments. Never interpolate a project path into a shell command.
+- Store no secrets and make no network requests while listing projects.
+- Do not add recent-project tracking, favorites, project editing, container status, or process monitoring in version 1.
+- Do not commit or push unless the user asks.
+
+---
+
+## File Map
+
+- `personal-command-center/package.json`: Raycast manifest, directory preference, scripts, and dependencies.
+- `personal-command-center/package-lock.json`: exact dependency lock.
+- `personal-command-center/assets/extension-icon.png`: icon from the official Raycast scaffold.
+- `personal-command-center/src/model.ts`: shared project types and marker constants.
+- `personal-command-center/src/discover-projects.ts`: shallow filesystem scan and project classification.
+- `personal-command-center/src/git-info.ts`: Git branch lookup and GitHub URL conversion.
+- `personal-command-center/src/terminal.ts`: safe Terminal launcher for Codex and Claude Code.
+- `personal-command-center/src/project-actions.tsx`: actions and copied command menus.
+- `personal-command-center/src/developer-command-center.tsx`: loading state, searchable list, and empty/error states.
+- `personal-command-center/test/discover-projects.test.ts`: temporary-folder discovery tests.
+- `personal-command-center/test/git-info.test.ts`: Git remote conversion tests.
+- `personal-command-center/test/terminal.test.ts`: Terminal argument construction tests.
+- `personal-command-center/vitest.config.ts`: test configuration.
+- `personal-command-center/.gitignore`: generated files excluded from Git.
+- `personal-command-center/README.md`: setup, features, safety rules, and development commands.
+
+### Task 1: Scaffold the Raycast Extension
+
+**Files:**
+- Delete: `personal-command-center/.gitkeep`
+- Create: `personal-command-center/package.json`
+- Create: `personal-command-center/package-lock.json`
+- Create: `personal-command-center/assets/extension-icon.png`
+- Create: `personal-command-center/.gitignore`
+- Create: `personal-command-center/vitest.config.ts`
+
+**Interfaces:**
+- Consumes: the official Raycast `Show List` scaffold.
+- Produces: a macOS view command named `developer-command-center` and a `projectsRoot` directory preference.
+
+- [ ] **Step 1: Remove the placeholder and create the official scaffold**
+
+Remove `personal-command-center/.gitkeep`. Then use Raycast's `Create Extension` command:
+
+```text
+Template: Show List
+Extension Name: Personal Command Center
+Command Name: Developer Command Center
+Location: /Users/ibrahim/Desktop/Projects/raycast-extensions
+```
+
+Expected: Raycast creates the extension files inside `personal-command-center` without creating nested Git metadata.
+
+- [ ] **Step 2: Set the manifest fields**
+
+Keep the scaffold's exact dependency versions. Set the following Raycast fields and scripts in `personal-command-center/package.json`:
+
+```json
+{
+  "name": "personal-command-center",
+  "title": "Personal Command Center",
+  "description": "Open local development projects and tools.",
+  "platforms": ["macOS"],
+  "categories": ["Developer Tools", "Productivity"],
+  "preferences": [
+    {
+      "name": "projectsRoot",
+      "title": "Projects Folder",
+      "description": "The folder whose immediate child folders are development projects.",
+      "type": "directory",
+      "required": true,
+      "default": "/Users/ibrahim/Desktop/Projects"
+    }
+  ],
+  "commands": [
+    {
+      "name": "developer-command-center",
+      "title": "Developer Command Center",
+      "description": "Search and open local development projects.",
+      "mode": "view"
+    }
+  ],
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run"
+  }
+}
+```
+
+Do not add `owner`, `access`, or `publish`.
+
+- [ ] **Step 3: Add the test runner**
+
+Run from `personal-command-center`:
+
+```bash
+npm install --save-exact @raycast/utils
+npm install --save-dev --save-exact vitest
+```
+
+Expected: `@raycast/utils` is added to `dependencies`, Vitest is added to `devDependencies`, and `package-lock.json` is updated.
+
+- [ ] **Step 4: Add generated-file and test configuration**
+
+Create `.gitignore`:
+
+```gitignore
+node_modules/
+dist/
+.DS_Store
+```
+
+Create `vitest.config.ts`:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: { include: ["test/**/*.test.ts"] },
+});
+```
+
+- [ ] **Step 5: Verify the scaffold**
+
+Run:
+
+```bash
+npm run lint
+npm run build
+```
+
+Expected: both commands exit with code 0.
+
+### Task 2: Discover and Classify Projects
+
+**Files:**
+- Create: `personal-command-center/src/model.ts`
+- Create: `personal-command-center/src/discover-projects.ts`
+- Create: `personal-command-center/test/discover-projects.test.ts`
+
+**Interfaces:**
+- Produces: `ProjectKind`, `Project`, and `discoverProjects(root: string): Promise<Project[]>`.
+- Project kinds are exactly `nextjs`, `django`, `python`, and `docker`.
+
+- [ ] **Step 1: Define the model**
+
+Create `src/model.ts`:
+
+```ts
+export type ProjectKind = "nextjs" | "django" | "python" | "docker";
+
+export type Project = {
+  name: string;
+  path: string;
+  kinds: ProjectKind[];
+  branch?: string;
+  githubUrl?: string;
+  devUrl?: string;
+};
+
+export const composeFiles = ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"];
+```
+
+- [ ] **Step 2: Write failing discovery tests**
+
+Create `test/discover-projects.test.ts`:
+
+```ts
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, describe, expect, it } from "vitest";
+import { discoverProjects } from "../src/discover-projects";
+
+let root: string | undefined;
+
+afterEach(async () => {
+  if (root) await rm(root, { recursive: true, force: true });
+  root = undefined;
+});
+
+describe("discoverProjects", () => {
+  it("classifies immediate child projects and ignores nested projects", async () => {
+    root = await mkdtemp(join(tmpdir(), "command-center-"));
+    const web = join(root, "Web App");
+    const api = join(root, "API");
+    const nested = join(web, "nested");
+    await mkdir(nested, { recursive: true });
+    await mkdir(api);
+    await writeFile(join(web, "package.json"), JSON.stringify({ dependencies: { next: "15.0.0" } }));
+    await writeFile(join(web, "compose.yaml"), "services: {}\n");
+    await writeFile(join(nested, "manage.py"), "");
+    await writeFile(join(api, "manage.py"), "");
+    await writeFile(join(api, "pyproject.toml"), "[project]\nname='api'\n");
+
+    expect(await discoverProjects(root)).toEqual([
+      { name: "API", path: api, kinds: ["django", "python"], devUrl: "http://localhost:8000" },
+      { name: "Web App", path: web, kinds: ["nextjs", "docker"], devUrl: "http://localhost:3000" },
+    ]);
+  });
+
+  it("skips folders without supported marker files", async () => {
+    root = await mkdtemp(join(tmpdir(), "command-center-"));
+    await mkdir(join(root, "Notes"));
+    expect(await discoverProjects(root)).toEqual([]);
+  });
+});
+```
+
+- [ ] **Step 3: Confirm the tests fail**
+
+Run `npm test`.
+
+Expected: FAIL because `src/discover-projects.ts` does not exist.
+
+- [ ] **Step 4: Implement the shallow scanner**
+
+Create `src/discover-projects.ts`:
+
+```ts
+import { access, readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { composeFiles, type Project, type ProjectKind } from "./model";
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isNextProject(path: string): Promise<boolean> {
+  try {
+    const value = JSON.parse(await readFile(join(path, "package.json"), "utf8"));
+    return Boolean(value.dependencies?.next || value.devDependencies?.next);
+  } catch {
+    return false;
+  }
+}
+
+async function classify(path: string): Promise<ProjectKind[]> {
+  const kinds: ProjectKind[] = [];
+  const django = await exists(join(path, "manage.py"));
+  const python = django || (await exists(join(path, "pyproject.toml"))) || (await exists(join(path, "requirements.txt")));
+  if (await isNextProject(path)) kinds.push("nextjs");
+  if (django) kinds.push("django");
+  if (python) kinds.push("python");
+  if ((await Promise.all(composeFiles.map((file) => exists(join(path, file))))).some(Boolean)) kinds.push("docker");
+  return kinds;
+}
+
+export async function discoverProjects(root: string): Promise<Project[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const projects = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+      .map(async (entry): Promise<Project | undefined> => {
+        const path = join(root, entry.name);
+        const kinds = await classify(path);
+        if (kinds.length === 0) return undefined;
+        const devUrl = kinds.includes("nextjs")
+          ? "http://localhost:3000"
+          : kinds.includes("django")
+            ? "http://localhost:8000"
+            : undefined;
+        return { name: entry.name, path, kinds, devUrl };
+      }),
+  );
+  return projects.filter((project): project is Project => Boolean(project)).sort((a, b) => a.name.localeCompare(b.name));
+}
+```
+
+- [ ] **Step 5: Verify discovery**
+
+Run `npm test`.
+
+Expected: 2 tests pass.
+
+### Task 3: Add Read-Only Git Information
+
+**Files:**
+- Create: `personal-command-center/src/git-info.ts`
+- Create: `personal-command-center/test/git-info.test.ts`
+- Modify: `personal-command-center/src/discover-projects.ts`
+
+**Interfaces:**
+- Produces: `toGitHubUrl(remote: string): string | undefined` and `readGitInfo(path: string): Promise<Pick<Project, "branch" | "githubUrl">>`.
+- `discoverProjects` returns the same `Project[]` enriched with branch and GitHub URL when available.
+
+- [ ] **Step 1: Write Git URL tests**
+
+Create `test/git-info.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { toGitHubUrl } from "../src/git-info";
+
+describe("toGitHubUrl", () => {
+  it.each([
+    ["git@github.com:owner/repo.git", "https://github.com/owner/repo"],
+    ["git@github-iibrahim908:iibrahim908/Orbit.git", "https://github.com/iibrahim908/Orbit"],
+    ["https://github.com/owner/repo.git", "https://github.com/owner/repo"],
+  ])("converts %s", (remote, expected) => expect(toGitHubUrl(remote)).toBe(expected));
+
+  it("rejects non-GitHub remotes", () => {
+    expect(toGitHubUrl("git@gitlab.com:owner/repo.git")).toBeUndefined();
+  });
+});
+```
+
+- [ ] **Step 2: Confirm the Git tests fail**
+
+Run `npm test`.
+
+Expected: FAIL because `src/git-info.ts` does not exist.
+
+- [ ] **Step 3: Implement Git lookup and conversion**
+
+Create `src/git-info.ts`:
+
+```ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import type { Project } from "./model";
+
+const execFileAsync = promisify(execFile);
+
+export function toGitHubUrl(remote: string): string | undefined {
+  const value = remote.trim();
+  const ssh = value.match(/^git@github(?:-[^:]+)?:([^/]+\/.+?)(?:\.git)?$/);
+  if (ssh) return `https://github.com/${ssh[1].replace(/\.git$/, "")}`;
+  const https = value.match(/^https:\/\/github\.com\/([^/]+\/.+?)(?:\.git)?$/);
+  if (https) return `https://github.com/${https[1].replace(/\.git$/, "")}`;
+  return undefined;
+}
+
+export async function readGitInfo(path: string): Promise<Pick<Project, "branch" | "githubUrl">> {
+  try {
+    const [{ stdout: branch }, { stdout: remote }] = await Promise.all([
+      execFileAsync("/usr/bin/git", ["-C", path, "branch", "--show-current"]),
+      execFileAsync("/usr/bin/git", ["-C", path, "remote", "get-url", "origin"]),
+    ]);
+    return { branch: branch.trim() || undefined, githubUrl: toGitHubUrl(remote) };
+  } catch {
+    return {};
+  }
+}
+```
+
+- [ ] **Step 4: Enrich discovered projects**
+
+Import `readGitInfo` in `src/discover-projects.ts`. Replace the final return statement with:
+
+```ts
+const sorted = projects
+  .filter((project): project is Project => Boolean(project))
+  .sort((a, b) => a.name.localeCompare(b.name));
+return Promise.all(sorted.map(async (project) => ({ ...project, ...(await readGitInfo(project.path)) })));
+```
+
+Replace the discovery assertion with this exact assertion because temporary fixture folders are not Git repositories:
+
+```ts
+expect(await discoverProjects(root)).toEqual([
+  expect.objectContaining({
+    name: "API",
+    path: api,
+    kinds: ["django", "python"],
+    devUrl: "http://localhost:8000",
+  }),
+  expect.objectContaining({
+    name: "Web App",
+    path: web,
+    kinds: ["nextjs", "docker"],
+    devUrl: "http://localhost:3000",
+  }),
+]);
+```
+
+- [ ] **Step 5: Verify discovery and Git parsing**
+
+Run `npm test`.
+
+Expected: all discovery and Git URL tests pass.
+
+### Task 4: Launch Codex and Claude Code Safely
+
+**Files:**
+- Create: `personal-command-center/src/terminal.ts`
+- Create: `personal-command-center/test/terminal.test.ts`
+
+**Interfaces:**
+- Produces: `terminalArguments(projectPath: string, toolPath: string): string[]` and `launchInTerminal(projectPath: string, toolPath: string): Promise<void>`.
+- Paths are passed as AppleScript arguments, not inserted into executable shell text.
+
+- [ ] **Step 1: Write the terminal argument test**
+
+Create `test/terminal.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { terminalArguments } from "../src/terminal";
+
+describe("terminalArguments", () => {
+  it("passes paths as separate arguments even when they contain shell characters", () => {
+    const args = terminalArguments("/tmp/project $(touch bad)", "/tmp/tool name");
+    expect(args.at(-2)).toBe("/tmp/project $(touch bad)");
+    expect(args.at(-1)).toBe("/tmp/tool name");
+    expect(args[1]).not.toContain("touch bad");
+  });
+});
+```
+
+- [ ] **Step 2: Confirm the terminal test fails**
+
+Run `npm test`.
+
+Expected: FAIL because `src/terminal.ts` does not exist.
+
+- [ ] **Step 3: Implement the safe Terminal launcher**
+
+Create `src/terminal.ts`:
+
+```ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+const script = `on run argv
+  set projectPath to item 1 of argv
+  set toolPath to item 2 of argv
+  tell application "Terminal"
+    activate
+    do script "cd " & quoted form of projectPath & " && exec " & quoted form of toolPath
+  end tell
+end run`;
+
+export function terminalArguments(projectPath: string, toolPath: string): string[] {
+  return ["-e", script, projectPath, toolPath];
+}
+
+export async function launchInTerminal(projectPath: string, toolPath: string): Promise<void> {
+  await execFileAsync("/usr/bin/osascript", terminalArguments(projectPath, toolPath));
+}
+```
+
+- [ ] **Step 4: Verify path safety**
+
+Run `npm test`.
+
+Expected: all tests pass, including the path containing `$()`.
+
+### Task 5: Render Project Actions and the Searchable List
+
+**Files:**
+- Create: `personal-command-center/src/project-actions.tsx`
+- Create: `personal-command-center/src/developer-command-center.tsx`
+- Delete: the scaffold's original example command source if it has another name
+
+**Interfaces:**
+- Consumes: `Project`, `discoverProjects`, and `launchInTerminal`.
+- Produces: the default Raycast command component mapped from `developer-command-center`.
+
+- [ ] **Step 1: Create project-specific actions**
+
+Create `src/project-actions.tsx`:
+
+```tsx
+import { Action, ActionPanel, Icon } from "@raycast/api";
+import { showFailureToast } from "@raycast/utils";
+import type { Project } from "./model";
+import { launchInTerminal } from "./terminal";
+
+const CODEX = "/Users/ibrahim/.local/bin/codex";
+const CLAUDE = "/Users/ibrahim/.local/bin/claude";
+
+async function launch(project: Project, tool: string, title: string) {
+  try {
+    await launchInTerminal(project.path, tool);
+  } catch (error) {
+    await showFailureToast(error, { title: `Could not open ${title}` });
+  }
+}
+
+export function ProjectActions({ project }: { project: Project }) {
+  const commands = [
+    ...(project.kinds.includes("nextjs") ? [{ title: "Copy Next.js Dev Command", value: "npm run dev" }] : []),
+    ...(project.kinds.includes("django")
+      ? [{ title: "Copy Django Dev Command", value: "python manage.py runserver" }]
+      : []),
+    ...(project.kinds.includes("docker")
+      ? [
+          { title: "Copy Docker Up Command", value: "docker compose up" },
+          { title: "Copy Docker Down Command", value: "docker compose down" },
+          { title: "Copy Docker Logs Command", value: "docker compose logs -f" },
+        ]
+      : []),
+  ];
+
+  return (
+    <ActionPanel>
+      <Action.Open title="Open in Visual Studio Code" target={project.path} application="Visual Studio Code" />
+      <Action title="Open Codex" icon={Icon.Terminal} onAction={() => launch(project, CODEX, "Codex")} />
+      <Action title="Open Claude Code" icon={Icon.Terminal} onAction={() => launch(project, CLAUDE, "Claude Code")} />
+      <Action.Open title="Open in Terminal" target={project.path} application="Terminal" />
+      <Action.ShowInFinder path={project.path} />
+      {project.githubUrl ? <Action.OpenInBrowser title="Open GitHub Repository" url={project.githubUrl} /> : null}
+      {project.devUrl ? <Action.OpenInBrowser title="Open Local Development URL" url={project.devUrl} /> : null}
+      <Action.CopyToClipboard title="Copy Project Path" content={project.path} />
+      {commands.length > 0 ? (
+        <ActionPanel.Submenu title="Copy Development Command" icon={Icon.Clipboard}>
+          {commands.map((command) => (
+            <Action.CopyToClipboard key={command.title} title={command.title} content={command.value} />
+          ))}
+        </ActionPanel.Submenu>
+      ) : null}
+    </ActionPanel>
+  );
+}
+```
+
+- [ ] **Step 2: Create the command view**
+
+Create `src/developer-command-center.tsx`:
+
+```tsx
+import { getPreferenceValues, Icon, List } from "@raycast/api";
+import { usePromise } from "@raycast/utils";
+import { discoverProjects } from "./discover-projects";
+import { ProjectActions } from "./project-actions";
+
+type Preferences = { projectsRoot: string };
+
+export default function Command() {
+  const { projectsRoot } = getPreferenceValues<Preferences>();
+  const { data = [], isLoading, error } = usePromise(discoverProjects, [projectsRoot]);
+
+  return (
+    <List isLoading={isLoading} searchBarPlaceholder="Search development projects…">
+      {!isLoading && error ? (
+        <List.EmptyView icon={Icon.Warning} title="Could not scan projects" description={error.message} />
+      ) : null}
+      {!isLoading && !error && data.length === 0 ? (
+        <List.EmptyView
+          icon={Icon.Folder}
+          title="No supported projects found"
+          description={`Check the Projects Folder preference: ${projectsRoot}`}
+        />
+      ) : null}
+      {data.map((project) => (
+        <List.Item
+          key={project.path}
+          id={project.path}
+          icon={project.kinds.includes("nextjs") ? Icon.Globe : Icon.Code}
+          title={project.name}
+          subtitle={project.path}
+          keywords={[...project.kinds, project.branch ?? "", "codex", "claude", "vscode", "terminal"]}
+          accessories={[
+            ...project.kinds.map((kind) => ({ tag: kind })),
+            ...(project.branch ? [{ text: project.branch, icon: Icon.CodeBlock }] : []),
+          ]}
+          actions={<ProjectActions project={project} />}
+        />
+      ))}
+    </List>
+  );
+}
+```
+
+- [ ] **Step 3: Run automated checks**
+
+Run:
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+Expected: all tests pass and lint and build exit with code 0.
+
+### Task 6: Document and Test the Real Workflow
+
+**Files:**
+- Create: `personal-command-center/README.md`
+
+**Interfaces:**
+- Consumes: the complete Developer Command Center.
+- Produces: user instructions and a completed manual acceptance check.
+
+- [ ] **Step 1: Add the README**
+
+Create `README.md`:
+
+```markdown
+# Personal Command Center
+
+A local Raycast project launcher for Next.js, Django, Python, and Docker Compose work.
+
+## Start development
+
+```bash
+npm install
+npm run dev
+```
+
+Search Raycast for **Developer Command Center**. Set **Projects Folder** in the extension preferences if your projects move.
+
+## Safety
+
+The extension reads marker files and Git metadata. It does not start servers, run migrations, or control Docker. Development commands are copied to the clipboard so you can inspect them first.
+
+## Checks
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+```
+
+- [ ] **Step 2: Start Raycast development mode**
+
+Run `npm run dev`.
+
+Expected: Raycast imports the extension and shows `Developer Command Center` in Development.
+
+- [ ] **Step 3: Check real project discovery**
+
+With the project root set to `/Users/ibrahim/Desktop/Projects`, verify:
+
+```text
+1. Orbit appears with nextjs and docker tags, its Git branch, GitHub action, and localhost:3000 action.
+2. Maestro appears with python and docker tags, its Git branch, and GitHub action.
+3. Searching "codex", "claude", "docker", or a project name finds the expected projects.
+4. Open in VS Code opens the chosen project.
+5. Open Codex starts Codex in a new Terminal tab at the chosen project path.
+6. Open Claude Code starts Claude Code in a new Terminal tab at the chosen project path.
+7. Docker actions copy commands but do not run them.
+8. Git and filesystem state remain unchanged after browsing the list.
+```
+
+- [ ] **Step 4: Run final verification**
+
+Stop development mode with `Control-C`, then run:
+
+```bash
+npm test
+npm run lint
+npm run build
+git status --short
+```
+
+Expected: tests, lint, and build pass. Git lists only the planned extension and plan files. Do not commit or push.
+
+---
+
+## Deferred Work
+
+- Running or monitoring Docker Compose services.
+- Starting servers, tests, builds, or database migrations.
+- Reading framework-specific custom ports from environment files.
+- Recent projects, favorites, ranking, and usage history.
+- Multiple project roots or recursive discovery.
+- User-configurable Codex, Claude Code, editor, and Terminal paths.
+- Adding arbitrary bookmarks, dashboards, documents, and notes.
+- Any work on `old-trash-cleaner`.
+
+## Self-Review Result
+
+- The plan covers shallow discovery, Next.js/Django/Python/Docker classification, Git metadata, VS Code, Terminal, Codex, Claude Code, GitHub, local URLs, and copied commands.
+- Destructive or long-running commands are excluded. Git and project files are read-only.
+- Project paths remain process arguments through the Terminal launcher, including paths with spaces or shell symbols.
+- Interfaces are consistent from `Project` through discovery, Git enrichment, actions, and list rendering.
