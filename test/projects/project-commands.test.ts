@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { developmentCommands } from "../src/project-commands";
+import { developmentCommands } from "../../src/features/projects/project-commands";
 
 describe("developmentCommands", () => {
   it("returns copyable commands for Next.js, Django, and Docker capabilities", () => {

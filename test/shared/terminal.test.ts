@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { terminalArguments } from "../src/terminal";
+import { terminalArguments } from "../../src/shared/terminal";
 
 describe("terminalArguments", () => {
   it("passes paths as separate arguments even when they contain shell characters", () => {

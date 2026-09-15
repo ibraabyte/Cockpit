@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { Project } from "./model";
+import type { Project } from "../projects/types";
 
 const execFileAsync = promisify(execFile);
 

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { readGitInfo, toGitHubUrl } from "../src/git-info";
+import { readGitInfo, toGitHubUrl } from "../../src/features/git/git-info";
 
 const execFileAsync = promisify(execFile);
 

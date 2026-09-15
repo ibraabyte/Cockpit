@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
-import { discoverProjects } from "../src/discover-projects";
+import { discoverProjects } from "../../src/features/projects/discover-projects";
 
 const execFileAsync = promisify(execFile);
 let root: string | undefined;

@@ -1,8 +1,8 @@
 import { Action, ActionPanel, Icon } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
-import type { Project } from "./model";
+import type { Project } from "./types";
 import { developmentCommands } from "./project-commands";
-import { launchInTerminal } from "./terminal";
+import { launchInTerminal } from "../../shared/terminal";
 
 const CODEX = "/Users/ibrahim/.local/bin/codex";
 const CLAUDE = "/Users/ibrahim/.local/bin/claude";

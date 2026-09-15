@@ -1,7 +1,7 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { readGitInfo } from "./git-info";
-import { composeFiles, type Project, type ProjectKind } from "./model";
+import { readGitInfo } from "../git/git-info";
+import { composeFiles, type Project, type ProjectKind } from "./types";
 
 async function exists(path: string): Promise<boolean> {
   try {

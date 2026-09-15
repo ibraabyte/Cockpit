@@ -1,7 +1,7 @@
 import { getPreferenceValues, Icon, List } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
-import { discoverProjects } from "./discover-projects";
-import { ProjectActions } from "./project-actions";
+import { discoverProjects } from "./features/projects/discover-projects";
+import { ProjectActions } from "./features/projects/project-actions";
 
 type Preferences = { projectsRoot: string };
 

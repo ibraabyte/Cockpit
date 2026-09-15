@@ -1,4 +1,4 @@
-import type { ProjectKind } from "./model";
+import type { ProjectKind } from "./types";
 
 export type DevelopmentCommand = {
   title: string;
