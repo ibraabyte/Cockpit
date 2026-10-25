@@ -1,10 +1,13 @@
-import { Icon, List } from "@raycast/api";
+import { getApplications, Icon, List } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
+import { findDeveloperApplications } from "../../shared/applications";
 import { discoverProjects } from "./discover-projects";
 import { ProjectActions } from "./project-actions";
 
 export function ProjectsView({ projectsRoot }: { projectsRoot: string }) {
   const { data = [], isLoading, error } = usePromise(discoverProjects, [projectsRoot]);
+  const { data: installedApplications = [] } = usePromise(getApplications);
+  const developerApplications = findDeveloperApplications(installedApplications);
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search development projects…">
@@ -30,7 +33,7 @@ export function ProjectsView({ projectsRoot }: { projectsRoot: string }) {
             ...project.kinds.map((kind) => ({ tag: kind })),
             ...(project.branch ? [{ text: project.branch, icon: Icon.CodeBlock }] : []),
           ]}
-          actions={<ProjectActions project={project} />}
+          actions={<ProjectActions project={project} applications={developerApplications} />}
         />
       ))}
     </List>

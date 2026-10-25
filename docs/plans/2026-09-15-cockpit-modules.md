@@ -116,7 +116,7 @@ Expected: 11 tests pass, lint exits with code 0, and Raycast builds `src/cockpit
 - Consumes: Raycast `getApplications(): Promise<Application[]>`
 - Produces: `findDeveloperApplications(applications: Application[]): DeveloperApplication[]`
 
-- [ ] **Step 1: Write the application matching tests**
+- [x] **Step 1: Write the application matching tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -139,13 +139,13 @@ describe("findDeveloperApplications", () => {
 });
 ```
 
-- [ ] **Step 2: Run the new test and confirm it fails**
+- [x] **Step 2: Run the new test and confirm it fails**
 
 Run: `npm test -- test/shared/applications.test.ts`
 
 Expected: failure because `src/shared/applications.ts` does not exist.
 
-- [ ] **Step 3: Implement application matching**
+- [x] **Step 3: Implement application matching**
 
 Support these names in this order: Visual Studio Code, Cursor, Zed, Warp, iTerm, GitHub Desktop, Docker Desktop, Postman, Bruno, TablePlus, and DBeaver. Match against the installed applications returned by Raycast and return only installed matches.
 
@@ -170,11 +170,11 @@ export type DeveloperApplication = {
 };
 ```
 
-- [ ] **Step 4: Add installed apps to project actions**
+- [x] **Step 4: Add installed apps to project actions**
 
 Load applications once in `ProjectsView` with `usePromise(getApplications)`. Pass the filtered list to `ProjectActions`. Add editor actions for Cursor and Zed, terminal actions for Warp and iTerm, and a GitHub Desktop action only when `project.branch` exists.
 
-- [ ] **Step 5: Verify application actions**
+- [x] **Step 5: Verify application actions**
 
 Run: `npm test && npm run lint && npm run build`
 
