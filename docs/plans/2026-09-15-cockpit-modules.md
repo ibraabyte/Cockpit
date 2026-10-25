@@ -33,13 +33,13 @@
 - Consumes: `discoverProjects(root: string): Promise<Project[]>`
 - Produces: `ProjectsView({ projectsRoot }: { projectsRoot: string }): JSX.Element`
 
-- [ ] **Step 1: Run the existing project tests**
+- [x] **Step 1: Run the existing project tests**
 
 Run: `npm test -- test/projects`
 
 Expected: 5 project tests pass.
 
-- [ ] **Step 2: Move the existing project list into `ProjectsView`**
+- [x] **Step 2: Move the existing project list into `ProjectsView`**
 
 Create `src/features/projects/projects-view.tsx` with this complete view:
 
@@ -84,7 +84,7 @@ export function ProjectsView({ projectsRoot }: { projectsRoot: string }) {
 }
 ```
 
-- [ ] **Step 3: Make `src/cockpit.tsx` a thin entry point**
+- [x] **Step 3: Make `src/cockpit.tsx` a thin entry point**
 
 ```tsx
 import { getPreferenceValues } from "@raycast/api";
@@ -98,7 +98,7 @@ export default function Command() {
 }
 ```
 
-- [ ] **Step 4: Verify the extraction**
+- [x] **Step 4: Verify the extraction**
 
 Run: `npm test && npm run lint && npm run build`
 
