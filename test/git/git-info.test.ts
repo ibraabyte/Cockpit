@@ -33,4 +33,15 @@ describe("toGitHubUrl", () => {
       await rm(path, { recursive: true, force: true });
     }
   });
+
+  it("keeps the current branch when there is no origin", async () => {
+    const path = await mkdtemp(join(tmpdir(), "command-center-git-local-"));
+    try {
+      await execFileAsync("/usr/bin/git", ["init", "-b", "local-only", path]);
+
+      expect(await readGitInfo(path)).toEqual({ branch: "local-only", githubUrl: undefined });
+    } finally {
+      await rm(path, { recursive: true, force: true });
+    }
+  });
 });

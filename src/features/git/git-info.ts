@@ -14,13 +14,14 @@ export function toGitHubUrl(remote: string): string | undefined {
 }
 
 export async function readGitInfo(path: string): Promise<Pick<Project, "branch" | "githubUrl">> {
-  try {
-    const [{ stdout: branch }, { stdout: remote }] = await Promise.all([
-      execFileAsync("/usr/bin/git", ["-C", path, "branch", "--show-current"]),
-      execFileAsync("/usr/bin/git", ["-C", path, "remote", "get-url", "origin"]),
-    ]);
-    return { branch: branch.trim() || undefined, githubUrl: toGitHubUrl(remote) };
-  } catch {
-    return {};
-  }
+  const [branchResult, remoteResult] = await Promise.allSettled([
+    execFileAsync("/usr/bin/git", ["-C", path, "branch", "--show-current"]),
+    execFileAsync("/usr/bin/git", ["-C", path, "remote", "get-url", "origin"]),
+  ]);
+  const branch = branchResult.status === "fulfilled" ? branchResult.value.stdout.trim() || undefined : undefined;
+  const githubUrl = remoteResult.status === "fulfilled" ? toGitHubUrl(remoteResult.value.stdout) : undefined;
+
+  if (branch) return { branch, githubUrl };
+  if (githubUrl) return { githubUrl };
+  return {};
 }
