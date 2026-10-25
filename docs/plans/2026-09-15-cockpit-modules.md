@@ -192,7 +192,7 @@ Expected: all tests pass and only installed applications are exposed.
 - Consumes: project paths from `discoverProjects`
 - Produces: `readGitStatus(path: string): Promise<GitStatus | undefined>` and `GitView`
 
-- [ ] **Step 1: Write porcelain-status parser tests**
+- [x] **Step 1: Write porcelain-status parser tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -214,21 +214,21 @@ describe("parseGitStatus", () => {
 });
 ```
 
-- [ ] **Step 2: Run the parser tests and confirm they fail**
+- [x] **Step 2: Run the parser tests and confirm they fail**
 
 Run: `npm test -- test/git/git-status.test.ts`
 
 Expected: failure because `git-status.ts` does not exist.
 
-- [ ] **Step 3: Implement read-only Git status**
+- [x] **Step 3: Implement read-only Git status**
 
 Use `/usr/bin/git -C <path> status --porcelain=v1`. Return counts only. Keep `readGitInfo` responsible for branch and GitHub URL.
 
-- [ ] **Step 4: Build `GitView`**
+- [x] **Step 4: Build `GitView`**
 
 Show one item per Git project with branch, clean/changed state, and counts. Provide actions to open the project, reveal it in Finder, open GitHub, open GitHub Desktop when installed, and copy the repository path. Do not add commit, push, pull, checkout, or reset actions.
 
-- [ ] **Step 5: Verify the Git tool**
+- [x] **Step 5: Verify the Git tool**
 
 Run: `npm test && npm run lint && npm run build`
 
@@ -246,7 +246,7 @@ Expected: parser tests and existing Git tests pass with no repository mutations.
 - Consumes: projects whose `kinds` include `docker`
 - Produces: `dockerArguments(action: DockerAction): string[]`, `readComposeServices(path: string)`, and `DockerView`
 
-- [ ] **Step 1: Write safe Docker argument tests**
+- [x] **Step 1: Write safe Docker argument tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -255,27 +255,27 @@ import { dockerArguments } from "../../src/features/docker/docker-client";
 describe("dockerArguments", () => {
   it("creates fixed compose argument arrays", () => {
     expect(dockerArguments("start")).toEqual(["compose", "up", "-d"]);
-    expect(dockerArguments("stop")).toEqual(["compose", "down"]);
+    expect(dockerArguments("stop")).toEqual(["compose", "stop"]);
     expect(dockerArguments("logs")).toEqual(["compose", "logs", "--tail", "200"]);
   });
 });
 ```
 
-- [ ] **Step 2: Run the Docker test and confirm it fails**
+- [x] **Step 2: Run the Docker test and confirm it fails**
 
 Run: `npm test -- test/docker/docker-client.test.ts`
 
 Expected: failure because the Docker client does not exist.
 
-- [ ] **Step 3: Implement the Docker client**
+- [x] **Step 3: Implement the Docker client**
 
 Resolve Docker from known macOS locations, then use `execFile` with `cwd` set to the project path. Read status with `docker compose ps --format json`. Run start or stop only after `confirmAlert` returns `true`.
 
-- [ ] **Step 4: Build `DockerView`**
+- [x] **Step 4: Build `DockerView`**
 
 Show Docker projects and their service state. Provide refresh, open Docker Desktop, start, stop, and logs actions. Mark stop as destructive and show the project name in the confirmation alert.
 
-- [ ] **Step 5: Verify the Docker tool**
+- [x] **Step 5: Verify the Docker tool**
 
 Run: `npm test && npm run lint && npm run build`
 
@@ -292,7 +292,7 @@ Expected: Docker argument tests pass; listing the view does not start or stop co
 **Interfaces:**
 - Produces: `parseListeningProcesses(output: string): LocalServer[]`, `readListeningProcesses()`, and `ServersView`
 
-- [ ] **Step 1: Write the process parser tests**
+- [x] **Step 1: Write the process parser tests**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -308,21 +308,21 @@ describe("parseListeningProcesses", () => {
 });
 ```
 
-- [ ] **Step 2: Run the server test and confirm it fails**
+- [x] **Step 2: Run the server test and confirm it fails**
 
 Run: `npm test -- test/servers/server-client.test.ts`
 
 Expected: failure because the server client does not exist.
 
-- [ ] **Step 3: Implement server discovery**
+- [x] **Step 3: Implement server discovery**
 
 Run `/usr/sbin/lsof -nP -iTCP -sTCP:LISTEN` with `execFile`. Keep only valid positive PIDs and ports from 1 through 65535. Sort by port and deduplicate repeated process-port pairs.
 
-- [ ] **Step 4: Build `ServersView`**
+- [x] **Step 4: Build `ServersView`**
 
 Show process name, PID, and port. Provide actions to open localhost, copy the URL, copy the PID, refresh, and stop the process. Call `process.kill(pid, "SIGTERM")` only after a destructive confirmation alert naming the process and port.
 
-- [ ] **Step 5: Verify the Servers tool**
+- [x] **Step 5: Verify the Servers tool**
 
 Run: `npm test && npm run lint && npm run build`
 
@@ -342,7 +342,7 @@ Expected: parser tests pass; opening the view does not signal any process.
 - Consumes: `ProjectsView`, `GitView`, `DockerView`, and `ServersView`
 - Produces: a searchable Cockpit home list with `Action.Push` navigation
 
-- [ ] **Step 1: Write the home tool-order test**
+- [x] **Step 1: Write the home tool-order test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -355,13 +355,13 @@ describe("toolDefinitions", () => {
 });
 ```
 
-- [ ] **Step 2: Run the home test and confirm it fails**
+- [x] **Step 2: Run the home test and confirm it fails**
 
 Run: `npm test -- test/home/tool-definitions.test.ts`
 
 Expected: failure because the home definitions do not exist.
 
-- [ ] **Step 3: Implement the home definitions**
+- [x] **Step 3: Implement the home definitions**
 
 ```ts
 export const toolDefinitions = [
@@ -372,15 +372,15 @@ export const toolDefinitions = [
 ] as const;
 ```
 
-- [ ] **Step 4: Implement the home view**
+- [x] **Step 4: Implement the home view**
 
 Render the four definitions as Raycast `List.Item` entries. Each item uses `Action.Push` to open its feature view. Keep `projectsRoot` loaded once in `src/cockpit.tsx` and pass it to Projects, Git, and Docker.
 
-- [ ] **Step 5: Update user documentation**
+- [x] **Step 5: Update user documentation**
 
 Document the four tools, confirmation behavior, supported installed apps, development commands, and the feature-based source structure.
 
-- [ ] **Step 6: Run the release gate**
+- [x] **Step 6: Run the release gate**
 
 Run: `npm test && npm run lint && npm run build`
 

@@ -1,40 +1,66 @@
 # Cockpit
 
-Cockpit opens your local development projects and tools from Raycast. It scans one projects folder and identifies supported project types. Each action keeps project changes under your control.
+Cockpit groups local development tools in one Raycast command. Open projects, review Git state, manage Docker Compose services, and inspect local servers.
 
-## What Cockpit supports
+## Cockpit tools
 
-Cockpit currently works with these project types:
+Cockpit includes four tools:
 
-- **Next.js**: detected from the `next` package in `package.json`
-- **Django**: detected from `manage.py`
-- **Python**: detected from `pyproject.toml` or `requirements.txt`
-- **Docker Compose**: detected from standard Compose file names
+- **Projects**: discover and open local development projects
+- **Git**: review branches and working tree changes without changing repositories
+- **Docker**: view Compose services, read logs, and start or stop services after confirmation
+- **Servers**: inspect listening ports and stop a process after confirmation
 
-For each project, Cockpit can:
+## Supported projects
 
-- Open the folder in Visual Studio Code, Terminal, or Finder
-- Start Codex or Claude Code in the project folder
-- Show the current Git branch
-- Open the GitHub repository when the `origin` remote points to GitHub
-- Open the expected local URL for Next.js or Django
-- Copy development and Docker commands to the clipboard
+Cockpit detects these project types:
+
+- **Next.js**: the `next` package exists in `package.json`
+- **Django**: `manage.py` exists
+- **Python**: `pyproject.toml` or `requirements.txt` exists
+- **Docker Compose**: a standard Compose file exists
+
+Cockpit scans only the immediate child folders inside your configured projects directory.
+
+## Installed applications
+
+Project actions show only applications installed on your Mac. Cockpit recognizes:
+
+- Visual Studio Code
+- Cursor
+- Zed
+- Warp
+- iTerm
+- GitHub Desktop
+- Docker Desktop
+- Postman
+- Bruno
+- TablePlus
+- DBeaver
+
+You can also open Codex or Claude Code in a project terminal. These actions expect:
+
+```text
+/Users/ibrahim/.local/bin/codex
+/Users/ibrahim/.local/bin/claude
+```
+
+## Safety boundaries
+
+Cockpit keeps Git actions read-only. It does not commit, push, pull, switch branches, or reset files.
+
+Docker start and stop actions require confirmation. Stopping a local server also requires confirmation and sends `SIGTERM` to the selected process. Cockpit never reads `.env` contents.
 
 ## Requirements
 
-Install these tools before you start:
+Install these tools:
 
 - macOS
 - [Raycast](https://www.raycast.com/)
 - Node.js 22.14 or newer
 - npm 7 or newer
 
-Codex and Claude Code actions expect these executable paths:
-
-```text
-/Users/ibrahim/.local/bin/codex
-/Users/ibrahim/.local/bin/claude
-```
+Docker actions also require Docker Desktop or a Docker command-line installation in a supported macOS location.
 
 ## Run Cockpit locally
 
@@ -47,19 +73,11 @@ npm install
 npm run dev
 ```
 
-Search Raycast for **Cockpit**, then open the command. Select your development projects directory in **Projects Folder**.
-
-Cockpit scans only the immediate child folders. It does not search your full filesystem.
-
-## Safety
-
-Cockpit reads project markers and Git metadata. It does not start servers or run migrations. It also does not change Git repositories or control Docker.
-
-Development and Docker commands are copied to the clipboard. Review each command before you run it.
+Open **Cockpit** in Raycast. Select your development projects directory in **Projects Folder**.
 
 ## Development checks
 
-Run these commands from the repository root:
+Run these checks from the repository root:
 
 ```bash
 npm test
@@ -67,30 +85,28 @@ npm run lint
 npm run build
 ```
 
-The scripts perform these checks:
-
-- `npm test`: runs the Vitest test suite
-- `npm run lint`: validates the Raycast manifest, formatting, and lint rules
-- `npm run build`: compiles the Raycast command and checks TypeScript
-
 ## Project structure
 
 ```text
 src/
 ├── cockpit.tsx
 ├── features/
+│   ├── docker/
 │   ├── git/
-│   └── projects/
+│   ├── home/
+│   ├── projects/
+│   └── servers/
 └── shared/
 test/
+├── docker/
 ├── git/
+├── home/
 ├── projects/
+├── servers/
 └── shared/
-docs/
-└── plans/
 ```
 
-The [architecture guide](docs/architecture.md) explains file responsibilities. The [roadmap](docs/roadmap.md) lists the planned Projects, Git, Docker, and Servers tools.
+Read the [architecture guide](docs/architecture.md) for file responsibilities and safety rules.
 
 ## License
 
